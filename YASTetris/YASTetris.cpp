@@ -9,12 +9,13 @@
 #define FIELD_POS_X 12
 #define FIELD_POS_Y 10
 #define GROUP_THRESHOLD 4
-#define NUM_OF_COLOURS 4  // see enum Cell
+#define NUM_OF_COLOURS 6  // see enum Cell
 #define MILLISEC_IN_TICK 500
+#define CELL_WORTH 50
 
 using namespace std::chrono;
 
-enum Cell { EMPTY, RED, GREEN, YELLOW, BLUE };
+enum Cell { EMPTY, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN};
 enum Status { NOT_STATIONARY, STATIONARY };
 
 Cell game_field[FIELD_Y][FIELD_X];
@@ -22,14 +23,13 @@ Status status_map[FIELD_Y][FIELD_X];
 int mark_map[FIELD_Y][FIELD_X];
 
 WINDOW *field_win;
-WINDOW *status_win;
-WINDOW *mark_win;
 
 int act1_x, act1_y, act2_x, act2_y;
 
 bool isActive;
 bool isGameOver;
-bool spawnPaused = false;
+
+int score;
 
 void DrawCell(Cell cell, int y, int x)
 {
@@ -58,6 +58,14 @@ void DrawCell(Cell cell, int y, int x)
 		ch = L'\u0398';
 		color = COLOR_PAIR(4);
 		break;
+	case MAGENTA:
+		ch = L'\u0398';
+		color = COLOR_PAIR(5);
+		break;
+	case CYAN:
+		ch = L'\u0398';
+		color = COLOR_PAIR(6);
+		break;
 	default:
 		ch = L'\u263A';
 		color = COLOR_PAIR(1);
@@ -68,24 +76,17 @@ void DrawCell(Cell cell, int y, int x)
 
 void DrawField()
 {
+	wborder(field_win, L'\u2551', L'\u2551', L'\u2550', L'\u2550', L'\u2554', L'\u2557', L'\u255A', L'\u255D');
 	for (int j = 0; j < FIELD_Y; ++j)
 		for (int i = 0; i < FIELD_X; ++i)
 			DrawCell(game_field[j][i], j + 1, i + 1);
+}
 
-	for (int j = 0; j < FIELD_Y; ++j)
-		for (int i = 0; i < FIELD_X; ++i)
-		{
-			if (status_map[j][i] == STATIONARY)
-				mvwaddch(status_win, j + 1, i + 1, '+');
-			else if (status_map[j][i] == NOT_STATIONARY)
-				mvwaddch(status_win, j + 1, i + 1, '0');
-		}
-
-	for (int j = 0; j < FIELD_Y; ++j)
-		for (int i = 0; i < FIELD_X; ++i)
-		{
-			mvwaddch(mark_win, j + 1, i + 1, mark_map[j][i] + 48);
-		}
+void DrawScore()
+{
+	mvprintw(FIELD_POS_Y + 2, FIELD_POS_X + FIELD_X + 5, "%d", score);
+	mvaddstr(FIELD_POS_Y + 1, FIELD_POS_X + FIELD_X + 5, "Your score is:");
+	refresh();
 }
 
 void CreateCells()
@@ -190,10 +191,16 @@ int CheckAdj(int j, int i, int group_num)
 	return num_of_cells;
 }
 
+void GainScore(int cells)
+{
+	score += (cells - 3) * CELL_WORTH;
+}
+
 void PopCells()
 {
 	int group_num;
 	int num_of_cells;
+	int cells_destroyed;
 
 	group_num = 0;
 	for (int j = FIELD_Y - 1; j > -1; --j)
@@ -209,17 +216,24 @@ void PopCells()
 				num_of_cells = CheckAdj(j, i, group_num);
 
 				if (num_of_cells >= GROUP_THRESHOLD)
+				{
+					cells_destroyed = 0;
 					for (int y = FIELD_Y - 1; y > -1; --y)
 						for (int x = FIELD_X - 1; x > -1; --x)
 							if (mark_map[y][x] == group_num)
 							{
 								game_field[y][x] = EMPTY;
+								cells_destroyed++;
+
 								for (int k = y; k > -1; --k)
 								{
 									status_map[k][x] = NOT_STATIONARY;
 								}
-								isActive = false;
+								isActive = false;	
 							}
+					GainScore(cells_destroyed);
+				}
+				
 			}
 }
 
@@ -337,7 +351,8 @@ void Input()
 		}
 		break;
 	case 113:  // 'q'
-		exit(0);
+		isGameOver = true;
+		return;
 		break;
 	case 122:  // 'z'
 		break;
@@ -350,30 +365,27 @@ void Input()
 		CheckStationary();
 }
 
+void GameOverMsg()
+{
+	mvaddstr(FIELD_POS_Y, FIELD_POS_X + FIELD_X + 5, "GAME OVER");
+	refresh();
+}
+
 void GameCycle()
 {
-	const milliseconds tick_dur { MILLISEC_IN_TICK };
+	const milliseconds tick_dur { MILLISEC_IN_TICK };  // interval for calling PopCells etc.
 
 	auto t1 = high_resolution_clock::now();
 	auto t2 = t1;
-
-	CreateCells();
-	DrawField();
-	wrefresh(field_win);
 
 	while (true)
 	{
 		if (duration_cast<milliseconds>(t2 - t1) >= tick_dur)
 		{
 			PopCells();
-
 			MoveCells();
-
 			DrawField();
-
 			wrefresh(field_win);
-			wrefresh(status_win);
-			wrefresh(mark_win);
 
 			t1 = high_resolution_clock::now();
 			t2 = t1;
@@ -382,19 +394,23 @@ void GameCycle()
 			while (duration_cast<milliseconds>(t2 - t1) < tick_dur)
 			{			
 				Input();
-
 				DrawField();
-
 				wrefresh(field_win);
-				wrefresh(status_win);
-				wrefresh(mark_win);
 
 				t2 = high_resolution_clock::now();
 			}	
+
+		DrawScore();
+
+		if (isGameOver)
+		{
+			GameOverMsg();
+			return;
+		}
 	}
 }
 
-int main()
+void Init()
 {
 	initscr();                    // Start curses mode
 	cbreak();                     // Считывание без буферизации
@@ -407,23 +423,19 @@ int main()
 	init_pair(2, COLOR_GREEN, COLOR_BLACK);
 	init_pair(3, COLOR_YELLOW, COLOR_BLACK);
 	init_pair(4, COLOR_BLUE, COLOR_BLACK);
+	init_pair(5, COLOR_MAGENTA, COLOR_BLACK);
+	init_pair(6, COLOR_CYAN, COLOR_BLACK);   
+	init_pair(7, COLOR_BLACK, COLOR_WHITE); // Цвета (шрифт + фон)
 
-	field_win = newwin(FIELD_Y + 2, FIELD_X + 2, FIELD_POS_Y, FIELD_POS_X);
-	wborder(field_win, L'\u2551', L'\u2551', L'\u2550', L'\u2550', L'\u2554', L'\u2557', L'\u255A', L'\u255D');
-	wrefresh(field_win);
-	nodelay(field_win, true);
-	keypad(field_win, true);
+	field_win = newwin(FIELD_Y + 2, FIELD_X + 2, FIELD_POS_Y, FIELD_POS_X);  // Новое окно
 
-	status_win = newwin(FIELD_Y + 2, FIELD_X + 2, FIELD_POS_Y, FIELD_POS_X + FIELD_X + 10);
-	wborder(status_win, L'\u2551', L'\u2551', L'\u2550', L'\u2550', L'\u2554', L'\u2557', L'\u255A', L'\u255D');
-	wrefresh(status_win);
-	for (int j = FIELD_Y - 1; j > -1; --j)
-		for (int i = FIELD_X - 1; i > -1; --i)
-			status_map[j][i] = NOT_STATIONARY;
+	nodelay(field_win, true);     // ввод без перехвата управления консолью при вызове getch()
+	keypad(field_win, true);      // ввод функциональных клавиш напрямую
+}
 
-	mark_win = newwin(FIELD_Y + 2, FIELD_X + 2, FIELD_POS_Y, FIELD_POS_X + 2 * FIELD_X+ 20);
-	wborder(mark_win, L'\u2551', L'\u2551', L'\u2550', L'\u2550', L'\u2554', L'\u2557', L'\u255A', L'\u255D');
-	wrefresh(mark_win);
+int main()
+{
+	Init();
 
 	GameCycle();
 
