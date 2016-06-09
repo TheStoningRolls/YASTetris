@@ -10,6 +10,7 @@
 #define FIELD_POS_Y 10
 #define GROUP_THRESHOLD 4
 #define NUM_OF_COLOURS 4  // see enum Cell
+#define MILLISEC_IN_TICK 500
 
 using namespace std::chrono;
 
@@ -26,7 +27,7 @@ WINDOW *status_win;
 int act1_x, act1_y, act2_x, act2_y;
 
 bool isActive;
-bool isVertical;
+bool isGameOver;
 
 void DrawCell(Cell cell, int y, int x)
 {
@@ -81,96 +82,44 @@ void DrawField()
 
 void CreateCells()
 {
-	int x;
 	Cell cell1, cell2;
 
-	srand((int)time(0));
-	x = rand() % FIELD_X;
-	cell1 = (Cell)(1 + rand() % NUM_OF_COLOURS);
-	cell2 = (Cell)(1 + rand() % NUM_OF_COLOURS);
-
-	act1_y = 0;
-	act1_x = x;
+	act1_y = 0;      // Spawn point
+	act1_x = 3;
 	act2_y = 1;
-	act2_x = x;
+	act2_x = 3;
 
-	game_field[act1_y][act1_x] = cell1;
-	game_field[act2_y][act2_x] = cell2;
+	if ((game_field[act1_y][act1_x] == EMPTY) && (game_field[act2_y][act2_x] == EMPTY))
+	{
+		srand((int)time(0));
+		cell1 = (Cell)(1 + rand() % NUM_OF_COLOURS);
+		cell2 = (Cell)(1 + rand() % NUM_OF_COLOURS);
 
-	isActive = true;
-	isVertical = true;
+		game_field[act1_y][act1_x] = cell1;
+		game_field[act2_y][act2_x] = cell2;
+
+		isActive = true;
+	}
+	else
+		isGameOver = true;
+}
+
+void CheckStationary()
+{
+	if ((status_map[act1_y + 1][act1_x] == STATIONARY) || (act1_y == FIELD_Y - 1))
+	{
+		status_map[act1_y][act1_x] = STATIONARY;
+		isActive = false;
+	}
+	if ((status_map[act2_y + 1][act2_x] == STATIONARY) || (act2_y == FIELD_Y - 1))
+	{
+		status_map[act2_y][act2_x] = STATIONARY;
+		isActive = false;
+	}
 }
 
 void MoveCells()
 {
-	/*bool hasChanged = false;
-
-	if (isActive)
-	{
-		if (isVertical)
-		{
-			if (act1_y > act2_y)                                             // Vertical, act1 lower than act2
-			{
-				game_field[act1_y + 1][act1_x] = game_field[act1_y][act1_x];
-				game_field[act1_y][act1_x] = game_field[act1_y - 1][act1_x];
-				if ((game_field[act1_y + 2][act1_x] != EMPTY) || ((act1_y + 1) == FIELD_Y - 1))
-					isActive = false;
-			}
-			else                                                             // Vertical, act2 lower than act1
-			{
-				game_field[act2_y + 1][act1_x] = game_field[act2_y][act1_x];
-				game_field[act2_y][act2_x] = game_field[act2_y - 1][act2_x];
-				if ((game_field[act2_y + 2][act2_x] != EMPTY) || ((act2_y + 1) == FIELD_Y - 1))
-					isActive = false;
-			}
-			if (!isActive)
-			{
-				status_map[act1_y][act1_x] = NOT_STATIONARY;
-				status_map[act2_y][act2_x] = NOT_STATIONARY;
-				status_map[act1_y + 1][act1_x] = STATIONARY;
-				status_map[act2_y + 1][act2_x] = STATIONARY;
-			}
-		}
-		else                                                                 // Horizontal
-		{
-			game_field[act1_y + 1][act1_x] = game_field[act1_y][act1_x];
-			game_field[act2_y + 1][act1_x] = game_field[act2_y][act1_x];
-			if ((game_field[act1_y + 2][act1_x] != EMPTY) || ((act1_y + 1) == FIELD_Y - 1))
-			{
-				isActive = false;
-				status_map[act1_y][act1_x] = NOT_STATIONARY;
-				status_map[act1_y + 1][act1_x] = STATIONARY;
-			}
-			if ((game_field[act2_y + 2][act2_x] != EMPTY) || ((act2_y + 1) == FIELD_Y - 1))
-			{
-				isActive = false;
-				status_map[act2_y][act2_x] = NOT_STATIONARY;
-				status_map[act2_y + 1][act2_x] = STATIONARY;
-			}
-		}
-
-		act1_y++;
-		act2_y++;
-	}
-	else
-	{
-		for (int j = FIELD_Y - 1; j > 0; --j)
-			for (int i = FIELD_X - 1; i > -1; --i)
-				if ((game_field[j][i] == EMPTY) && (game_field[j - 1][i] != EMPTY))
-				{
-					game_field[j][i] = game_field[j - 1][i];
-					if ((status_map[j + 1][i] == STATIONARY) || (j == (FIELD_Y - 1)))
-						status_map[j][i] = STATIONARY;
-
-					game_field[j - 1][i] = EMPTY;
-					status_map[j - 1][i] = NOT_STATIONARY;
-
-					hasChanged = true;
-				}
-		if (!hasChanged)
-			CreateCells();
-	}*/
-
 	bool hasMoved = false;
 	Cell cell1, cell2;
 
@@ -183,25 +132,12 @@ void MoveCells()
 		game_field[++act1_y][act1_x] = cell1;
 		game_field[++act2_y][act2_x] = cell2;
 
-		if ((status_map[act1_y + 1][act1_x] == STATIONARY) || (act1_y == FIELD_Y - 1))
-		{
-			status_map[act1_y][act1_x] = STATIONARY;
-			if (status_map[act2_y + 1][act2_x] == STATIONARY)
-				status_map[act2_y][act2_x] = STATIONARY;
-			isActive = false;
-		}
-		if ((status_map[act2_y + 1][act2_x] == STATIONARY) || (act2_y == FIELD_Y - 1))
-		{
-			status_map[act2_y][act2_x] = STATIONARY;
-			if (status_map[act1_y + 1][act1_x] == STATIONARY)
-				status_map[act1_y][act1_x] = STATIONARY;
-			isActive = false;
-		}
+		CheckStationary();
 	}
 	else
 	{
 		for (int j = FIELD_Y - 2; j > 0; --j)
-			for (int i = 0; i < FIELD_X - 1; ++i)
+			for (int i = 0; i < FIELD_X; ++i)
 				if ((game_field[j][i] != EMPTY) && (game_field[j + 1][i] == EMPTY))
 				{
 					game_field[j + 1][i] = game_field[j][i];
@@ -282,7 +218,7 @@ void Input()
 	switch (ch)
 	{
 	case KEY_LEFT:
-		if ((act1_x > 0) && (act2_x > 0) && isActive)
+		if ((act1_x > 0) && (act2_x > 0) && (status_map[act1_y][act1_x - 1] == EMPTY) && (status_map[act2_y][act2_x - 1] == EMPTY) && isActive)
 		{
 			cell1 = game_field[act1_y][act1_x];
 			cell2 = game_field[act2_y][act2_x];
@@ -293,7 +229,7 @@ void Input()
 		}
 		break;
 	case KEY_RIGHT:
-		if ((act1_x < (FIELD_X - 1)) && (act2_x < (FIELD_X - 1)) && isActive)
+		if ((act1_x < (FIELD_X - 1)) && (act2_x < (FIELD_X - 1)) && (status_map[act1_y][act1_x + 1] == EMPTY) && (status_map[act1_y][act1_x + 1] == EMPTY) && isActive)
 		{
 			cell1 = game_field[act1_y][act1_x];
 			cell2 = game_field[act2_y][act2_x];
@@ -303,28 +239,105 @@ void Input()
 			game_field[act2_y][++act2_x] = cell2;
 		}
 		break;
-	/*case KEY_DOWN:
-		cell1 = game_field[act1_y][act1_x];
-		cell2 = game_field[act2_y][act2_x];
-		game_field[act1_y][act1_x] = EMPTY;
-		game_field[act2_y][act2_x] = EMPTY;
-		for (int j = 0; j < FIELD_Y - 1; ++j)
-			if (game_field[j][act])
-		break;*/
+	case KEY_DOWN:
+		while ((status_map[act1_y + 1][act1_x] != STATIONARY) && (status_map[act2_y + 1][act2_x] != STATIONARY) &&
+			(act1_y  != FIELD_Y - 1) && (act2_y != FIELD_Y - 1))
+		{
+			cell1 = game_field[act1_y][act1_x];
+			cell2 = game_field[act2_y][act2_x];
+			game_field[act1_y][act1_x] = EMPTY;
+			game_field[act2_y][act2_x] = EMPTY;
+			game_field[++act1_y][act1_x] = cell1;
+			game_field[++act2_y][act2_x] = cell2;
+
+			DrawCell(cell1, act1_y + 1, act1_x + 1);
+			DrawCell(cell2, act2_y + 1, act2_x + 1);
+
+			wrefresh(field_win);
+		}
+		break;
 	case KEY_UP:
+		if (isActive)
+		{
+			cell1 = game_field[act1_y][act1_x];
+			cell2 = game_field[act2_y][act2_x];
+			game_field[act1_y][act1_x] = EMPTY;
+			game_field[act2_y][act2_x] = EMPTY;
+
+			if (act1_y < act2_y)
+			{
+				if ((game_field[act2_y][act2_x + 1] == EMPTY) && (game_field[act2_y - 1][act2_x + 1] == EMPTY) && (act2_x != (FIELD_X - 1)))
+				{
+					act1_y = act2_y;
+					act1_x = act2_x + 1;
+				}
+				else if (game_field[act2_y][act2_x - 1] == EMPTY)
+				{
+					act2_x--;
+					act1_y++;
+				}
+			}
+			else if (act1_y > act2_y)
+			{
+				if ((game_field[act2_y][act2_x - 1] == EMPTY) && (game_field[act2_y + 1][act2_x - 1] == EMPTY) && (act2_x != 0))
+				{
+					act1_y = act2_y;
+					act1_x = act2_x - 1;
+				}
+				else if (game_field[act2_y][act2_x + 1] == EMPTY)
+				{
+					act2_x++;
+					act1_y--;
+				}
+			}
+			else if (act1_x < act2_x)
+			{
+				if ((game_field[act2_y - 1][act2_x] == EMPTY) && (game_field[act2_y - 1][act2_x - 1] == EMPTY) && (act2_y != 0))
+				{
+					act1_x = act2_x;
+					act1_y = act2_y - 1;
+				}
+				else if (game_field[act2_y + 1][act2_x] == EMPTY)
+				{
+					act2_y++;
+					act1_x++;
+				}
+			}
+			else if (act1_x > act2_x)
+			{
+				if ((game_field[act2_y + 1][act2_x] == EMPTY) && (game_field[act2_y + 1][act2_x + 1] == EMPTY) && (act2_y != (FIELD_Y - 1)))
+				{
+					act1_x = act2_x;
+					act1_y = act2_y + 1;
+				}
+				else if (game_field[act2_y - 1][act2_x] == EMPTY)
+				{
+					act2_y--;
+					act1_x--;
+				}
+			}
+
+			game_field[act1_y][act1_x] = cell1;
+			game_field[act2_y][act2_x] = cell2;
+		}
 		break;
 	case 113:  // 'q'
 		exit(0);
 		break;
+	case 122:  // 'z'
+		break;
+	case 120:  // 'x'
+		break;
 	default:
 		break;
 	}
-
+	
+	CheckStationary();
 }
 
 void GameCycle()
 {
-	const milliseconds tick_dur { 500 };
+	const milliseconds tick_dur { MILLISEC_IN_TICK };
 
 	auto t1 = high_resolution_clock::now();
 	auto t2 = t1;
@@ -360,7 +373,7 @@ void GameCycle()
 				wrefresh(status_win);
 
 				t2 = high_resolution_clock::now();
-			}
+			}	
 	}
 }
 
@@ -396,6 +409,4 @@ int main()
 	wgetch(field_win);            // Wait for user input
 	endwin();                     // End curses mode
 	return 0;
-
-	
 }
