@@ -23,11 +23,13 @@ int mark_map[FIELD_Y][FIELD_X];
 
 WINDOW *field_win;
 WINDOW *status_win;
+WINDOW *mark_win;
 
 int act1_x, act1_y, act2_x, act2_y;
 
 bool isActive;
 bool isGameOver;
+bool spawnPaused = false;
 
 void DrawCell(Cell cell, int y, int x)
 {
@@ -75,8 +77,14 @@ void DrawField()
 		{
 			if (status_map[j][i] == STATIONARY)
 				mvwaddch(status_win, j + 1, i + 1, '+');
-			if (status_map[j][i] == NOT_STATIONARY)
+			else if (status_map[j][i] == NOT_STATIONARY)
 				mvwaddch(status_win, j + 1, i + 1, '0');
+		}
+
+	for (int j = 0; j < FIELD_Y; ++j)
+		for (int i = 0; i < FIELD_X; ++i)
+		{
+			mvwaddch(mark_win, j + 1, i + 1, mark_map[j][i] + 48);
 		}
 }
 
@@ -109,11 +117,15 @@ void CheckStationary()
 	if ((status_map[act1_y + 1][act1_x] == STATIONARY) || (act1_y == FIELD_Y - 1))
 	{
 		status_map[act1_y][act1_x] = STATIONARY;
+		if (status_map[act2_y + 1][act2_x] == STATIONARY)
+			status_map[act2_y][act2_x] = STATIONARY;
 		isActive = false;
 	}
 	if ((status_map[act2_y + 1][act2_x] == STATIONARY) || (act2_y == FIELD_Y - 1))
 	{
 		status_map[act2_y][act2_x] = STATIONARY;
+		if (status_map[act1_y + 1][act1_x] == STATIONARY)
+			status_map[act1_y][act1_x] = STATIONARY;
 		isActive = false;
 	}
 }
@@ -157,19 +169,21 @@ int CheckAdj(int j, int i, int group_num)
 {
 	int num_of_cells = 1;
 
-	if ((mark_map[j + 1][i] == 0) && (j != FIELD_Y))
+	mark_map[j][i] = group_num;
+
+	if ((game_field[j + 1][i] == game_field[j][i]) && (mark_map[j + 1][i] == 0) && (j != FIELD_Y))
 	{
 		num_of_cells += CheckAdj(j + 1, i, group_num);
 	}
-	if ((mark_map[j - 1][i] == 0) && (j != 0))
+	if ((game_field[j - 1][i] == game_field[j][i]) && (mark_map[j - 1][i] == 0) && (j != 0))
 	{
 		num_of_cells += CheckAdj(j - 1, i, group_num);
 	}
-	if ((mark_map[j][i + 1] == 0) && (i != FIELD_X))
+	if ((game_field[j][i + 1] == game_field[j][i]) && (mark_map[j][i + 1] == 0) && (i != FIELD_X))
 	{
 		num_of_cells += CheckAdj(j, i + 1, group_num);
 	}
-	if ((mark_map[j][i - 1] == 0) && (i != 0))
+	if ((game_field[j][i - 1] == game_field[j][i]) && (mark_map[j][i - 1] == 0) && (i != 0))
 	{
 		num_of_cells += CheckAdj(j, i - 1, group_num);
 	}
@@ -181,31 +195,32 @@ void PopCells()
 	int group_num;
 	int num_of_cells;
 
-	if (!isActive)
-	{
-		group_num = 0;
-		for (int j = FIELD_Y - 1; j > -1; --j)
-			for (int i = FIELD_X - 1; i > -1; --i)
-				mark_map[j][i] = 0;
+	group_num = 0;
+	for (int j = FIELD_Y - 1; j > -1; --j)
+		for (int i = FIELD_X - 1; i > -1; --i)
+			mark_map[j][i] = 0;
 
-		for (int j = FIELD_Y - 1; j > -1; --j)
-			for (int i = FIELD_X - 1; i > -1; --i)
-				if ((status_map[j][i] == STATIONARY) && (mark_map[j][i] = 0))
-				{
-					group_num++;
-					num_of_cells = CheckAdj(j, i, group_num);
+	for (int j = FIELD_Y - 1; j > -1; --j)
+		for (int i = FIELD_X - 1; i > -1; --i)
+			if ((status_map[j][i] == STATIONARY) && (game_field[j][i] != EMPTY) && (mark_map[j][i] == 0))
+			{
+				group_num++;
+				mark_map[j][i] = group_num;
+				num_of_cells = CheckAdj(j, i, group_num);
 
-					if (num_of_cells >= GROUP_THRESHOLD)
-						for (int j = FIELD_Y - 1; j > -1; --j)
-							for (int i = FIELD_X - 1; i > -1; --i)
-								if (mark_map[j][i] == group_num)
+				if (num_of_cells >= GROUP_THRESHOLD)
+					for (int y = FIELD_Y - 1; y > -1; --y)
+						for (int x = FIELD_X - 1; x > -1; --x)
+							if (mark_map[y][x] == group_num)
+							{
+								game_field[y][x] = EMPTY;
+								for (int k = y; k > -1; --k)
 								{
-									game_field[j][i] = EMPTY;
-									status_map[j][i] = NOT_STATIONARY;
-									status_map[j - 1][i] = NOT_STATIONARY;
+									status_map[k][x] = NOT_STATIONARY;
 								}
-				}
-	}
+								isActive = false;
+							}
+			}
 }
 
 void Input()
@@ -331,8 +346,8 @@ void Input()
 	default:
 		break;
 	}
-	
-	CheckStationary();
+	if (isActive)
+		CheckStationary();
 }
 
 void GameCycle()
@@ -350,14 +365,15 @@ void GameCycle()
 	{
 		if (duration_cast<milliseconds>(t2 - t1) >= tick_dur)
 		{
-			MoveCells();
+			PopCells();
 
-			//PopCells();
+			MoveCells();
 
 			DrawField();
 
 			wrefresh(field_win);
 			wrefresh(status_win);
+			wrefresh(mark_win);
 
 			t1 = high_resolution_clock::now();
 			t2 = t1;
@@ -371,6 +387,7 @@ void GameCycle()
 
 				wrefresh(field_win);
 				wrefresh(status_win);
+				wrefresh(mark_win);
 
 				t2 = high_resolution_clock::now();
 			}	
@@ -403,6 +420,10 @@ int main()
 	for (int j = FIELD_Y - 1; j > -1; --j)
 		for (int i = FIELD_X - 1; i > -1; --i)
 			status_map[j][i] = NOT_STATIONARY;
+
+	mark_win = newwin(FIELD_Y + 2, FIELD_X + 2, FIELD_POS_Y, FIELD_POS_X + 2 * FIELD_X+ 20);
+	wborder(mark_win, L'\u2551', L'\u2551', L'\u2550', L'\u2550', L'\u2554', L'\u2557', L'\u255A', L'\u255D');
+	wrefresh(mark_win);
 
 	GameCycle();
 
