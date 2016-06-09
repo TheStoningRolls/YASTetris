@@ -339,7 +339,7 @@ void GameCycle()
 		{
 			MoveCells();
 
-			PopCells();
+			//PopCells();
 
 			DrawField();
 
@@ -382,6 +382,7 @@ int main()
 	wborder(field_win, L'\u2551', L'\u2551', L'\u2550', L'\u2550', L'\u2554', L'\u2557', L'\u255A', L'\u255D');
 	wrefresh(field_win);
 	nodelay(field_win, true);
+	keypad(field_win, true);
 
 	status_win = newwin(FIELD_Y + 2, FIELD_X + 2, FIELD_POS_Y, FIELD_POS_X + FIELD_X + 10);
 	wborder(status_win, L'\u2551', L'\u2551', L'\u2550', L'\u2550', L'\u2554', L'\u2557', L'\u255A', L'\u255D');
