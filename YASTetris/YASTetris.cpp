@@ -11,10 +11,16 @@
 using namespace std::chrono;
 
 enum Cell { EMPTY, RED, GREEN, YELLOW, BLUE };
+enum Status { FALLEN, NOT_FALLEN };
 
 Cell game_field[FIELD_Y][FIELD_X];
+Status status_map[FIELD_Y][FIELD_X];
 
 WINDOW *field_win;
+
+int act1_x, act1_y, act2_x, act2_y;
+bool isActive = false;
+bool isVertical = true;
 
 void DrawCell(Cell cell, int y, int x)
 {
@@ -60,10 +66,51 @@ void DrawField()
 	}
 }
 
-void MoveCells(bool isActive)
+void MoveCells()
 {
 	if (isActive)
-		getch(); // to-do
+	{
+		if (isVertical)
+		{
+			if (act1_y > act2_y)                                             // Vertical, act1 lower than act2
+			{
+				game_field[act1_y + 1][act1_x] = game_field[act1_y][act1_x];
+				game_field[act1_y][act1_x] = game_field[act1_y - 1][act1_x];
+				if ((game_field[act1_y + 2][act1_x] != EMPTY) || ((act1_y + 1) == FIELD_Y - 1))
+					isActive = false;
+			}
+			else                                                             // Vertical, act2 lower than act1
+			{
+				game_field[act2_y + 1][act1_x] = game_field[act2_y][act1_x];
+				game_field[act2_y][act2_x] = game_field[act2_y - 1][act2_x];
+				if ((game_field[act2_y + 2][act2_x] != EMPTY) || ((act2_y + 1) == FIELD_Y - 1))
+					isActive = false;
+			}
+			if (!isActive)
+			{
+				status_map[act1_y + 1][act1_x] = FALLEN;
+				status_map[act2_y + 1][act2_x] = FALLEN;
+			}
+		}
+		else                                                                 // Horizontal
+		{
+			game_field[act1_y + 1][act1_x] = game_field[act1_y][act1_x];
+			game_field[act2_y + 1][act1_x] = game_field[act2_y][act1_x];
+			if ((game_field[act1_y + 2][act1_x] != EMPTY) || ((act1_y + 1) == FIELD_Y - 1))
+			{
+				isActive = false;
+				status_map[act1_y + 1][act1_x] = FALLEN;
+			}
+			if ((game_field[act2_y + 2][act2_x] != EMPTY) || ((act2_y + 1) == FIELD_Y - 1))
+			{
+				isActive = false;
+				status_map[act2_y + 1][act2_x] = FALLEN;
+			}
+		}
+
+		act1_y++;
+		act2_y++;
+	}
 	else
 		for (int j = FIELD_Y - 1; j > 0; --j)
 			for (int i = FIELD_X; i > 0; --i)
@@ -71,14 +118,25 @@ void MoveCells(bool isActive)
 				{
 					game_field[j][i] = game_field[j - 1][i];
 					game_field[j - 1][i] = EMPTY;
+					if ((status_map[j + 1][i] == FALLEN) || (j == (FIELD_Y - 1)))
+						status_map[j][i] = FALLEN;
 				}
+}
+
+void PopCells()
+{
+	int mark_map[FIELD_Y][FIELD_POS_X]
+
+	if (!isActive)
+	{
+
+	}
 }
 
 void GameCycle()
 {
 	const milliseconds tick_dur { 500 };
 
-	bool isActive = false;
 	auto t1 = high_resolution_clock::now();
 	auto t2 = t1;
 	int ch;
@@ -87,11 +145,13 @@ void GameCycle()
 	{
 		if (duration_cast<milliseconds>(t2 - t1) >= tick_dur)
 		{
-			MoveCells(isActive);
+			MoveCells();
+
+			PopCells();
 
 			DrawField();
 
-			wrefresh(field_win);          // Print it on to the real screen
+			wrefresh(field_win);
 
 			t1 = high_resolution_clock::now();
 			t2 = t1;
@@ -108,6 +168,8 @@ void GameCycle()
 				case KEY_RIGHT:
 					break;
 				case KEY_DOWN:
+					break;
+				case KEY_UP: 
 					break;
 				case 113:  // 'q'
 					exit(0);
