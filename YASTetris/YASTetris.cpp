@@ -2,12 +2,14 @@
 #include "curses.h"
 #include <iostream>
 #include <chrono>
+#include <cstdlib>
 
 #define FIELD_X 6
 #define FIELD_Y 12
 #define FIELD_POS_X 12
 #define FIELD_POS_Y 10
 #define GROUP_THRESHOLD 4
+#define NUM_OF_COLOURS 4  // see enum Cell
 
 using namespace std::chrono;
 
@@ -69,8 +71,26 @@ void DrawField()
 	}
 }
 
+void CreateCells()
+{
+	int x;
+	Cell cell1, cell2;
+
+	srand(time(0));
+	x = 1 + rand() % (FIELD_X - 1);
+	cell1 = (Cell)(1 + rand() % (NUM_OF_COLOURS - 1));
+	cell2 = (Cell)(1 + rand() % (NUM_OF_COLOURS - 1));
+
+	game_field[1][x] = cell1;
+	game_field[2][x] = cell2;
+
+	isActive = true;
+}
+
 void MoveCells()
 {
+	bool hasChanged = false;
+
 	if (isActive)
 	{
 		if (isVertical)
@@ -119,6 +139,7 @@ void MoveCells()
 		act2_y++;
 	}
 	else
+	{
 		for (int j = FIELD_Y - 1; j > 0; --j)
 			for (int i = FIELD_X; i > 0; --i)
 				if ((game_field[j][i] == EMPTY) && (game_field[j - 1][i] != EMPTY))
@@ -128,7 +149,11 @@ void MoveCells()
 					if ((status_map[j + 1][i] == FALLEN) || (j == (FIELD_Y - 1)))
 						status_map[j][i] = FALLEN;
 					status_map[j - 1][i] = NOT_FALLEN;
+					hasChanged = true;
 				}
+		if (!hasChanged)
+			CreateCells();
+	}
 }
 
 int CheckAdj(int j, int i, int group_num)
