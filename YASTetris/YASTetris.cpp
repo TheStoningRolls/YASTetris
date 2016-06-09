@@ -76,13 +76,13 @@ void CreateCells()
 	int x;
 	Cell cell1, cell2;
 
-	srand(time(0));
+	srand((int)time(0));
 	x = 1 + rand() % (FIELD_X - 1);
 	cell1 = (Cell)(1 + rand() % (NUM_OF_COLOURS - 1));
 	cell2 = (Cell)(1 + rand() % (NUM_OF_COLOURS - 1));
 
-	game_field[1][x] = cell1;
-	game_field[2][x] = cell2;
+	game_field[0][x] = cell1;
+	game_field[1][x] = cell2;
 
 	isActive = true;
 }
@@ -141,14 +141,16 @@ void MoveCells()
 	else
 	{
 		for (int j = FIELD_Y - 1; j > 0; --j)
-			for (int i = FIELD_X; i > 0; --i)
+			for (int i = FIELD_X - 1; i > -1; --i)
 				if ((game_field[j][i] == EMPTY) && (game_field[j - 1][i] != EMPTY))
 				{
 					game_field[j][i] = game_field[j - 1][i];
-					game_field[j - 1][i] = EMPTY;
 					if ((status_map[j + 1][i] == FALLEN) || (j == (FIELD_Y - 1)))
 						status_map[j][i] = FALLEN;
+
+					game_field[j - 1][i] = EMPTY;
 					status_map[j - 1][i] = NOT_FALLEN;
+
 					hasChanged = true;
 				}
 		if (!hasChanged)
@@ -187,25 +189,25 @@ void PopCells()
 	if (!isActive)
 	{
 		group_num = 0;
-		for (int j = FIELD_Y; j > 0; --j)
-			for (int i = FIELD_X; i > 0; --i)
+		for (int j = FIELD_Y - 1; j > -1; --j)
+			for (int i = FIELD_X - 1; i > -1; --i)
 				mark_map[j][i] = 0;
 
-		for (int j = FIELD_Y; j > 0; --j)
-			for (int i = FIELD_X; i > 0; --i)
+		for (int j = FIELD_Y - 1; j > -1; --j)
+			for (int i = FIELD_X - 1; i > -1; --i)
 				if ((status_map[j][i] == FALLEN) && (mark_map[j][i] = 0))
 				{
 					group_num++;
 					num_of_cells = CheckAdj(j, i, group_num);
 
 					if (num_of_cells >= GROUP_THRESHOLD)
-						for (int j = FIELD_Y; j > 0; --j)
-							for (int i = FIELD_X; i > 0; --i)
+						for (int j = FIELD_Y - 1; j > -1; --j)
+							for (int i = FIELD_X - 1; i > -1; --i)
 								if (mark_map[j][i] == group_num)
 								{
-									game_field[j][i] == EMPTY;
-									status_map[j][i] == NOT_FALLEN;
-									status_map[j - 1][i] == NOT_FALLEN;
+									game_field[j][i] = EMPTY;
+									status_map[j][i] = NOT_FALLEN;
+									status_map[j - 1][i] = NOT_FALLEN;
 								}
 				}
 	}
@@ -213,11 +215,17 @@ void PopCells()
 
 void GameCycle()
 {
+	int k = 0;
+
 	const milliseconds tick_dur { 500 };
 
 	auto t1 = high_resolution_clock::now();
 	auto t2 = t1;
 	int ch;
+
+	CreateCells();
+	DrawField();
+	wrefresh(field_win);
 
 	while (true)
 	{
@@ -237,6 +245,9 @@ void GameCycle()
 		else
 			while (duration_cast<milliseconds>(t2 - t1) < tick_dur)
 			{
+				//k++;
+				//mvwaddch(field_win, 1, 1, k);
+				/*
 				ch = wgetch(field_win);
 
 				switch (ch)
@@ -255,6 +266,7 @@ void GameCycle()
 				default:
 					break;
 				}
+				*/
 
 				t2 = high_resolution_clock::now();
 			}
@@ -279,10 +291,6 @@ int main()
 	wborder(field_win, L'\u2551', L'\u2551', L'\u2550', L'\u2550', L'\u2554', L'\u2557', L'\u255A', L'\u255D');
 	wrefresh(field_win);
 	nodelay(field_win, true);
-
-	for (int j = 0; j < FIELD_Y; ++j)
-		for (int i = 0; i < FIELD_X; ++i)
-			game_field[j][i] = (Cell)(rand() % 5);
 
 	GameCycle();
 
