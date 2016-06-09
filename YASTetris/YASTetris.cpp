@@ -368,7 +368,10 @@ void Input()
 void GameOverMsg()
 {
 	mvaddstr(FIELD_POS_Y, FIELD_POS_X + FIELD_X + 5, "GAME OVER");
+	mvaddstr(FIELD_POS_Y + 5, FIELD_POS_X + FIELD_X + 5, "Press any key to exit.");
 	refresh();
+	nodelay(field_win, false);
+	wgetch(field_win);            // wait for keypress
 }
 
 void GameCycle()
@@ -439,7 +442,6 @@ int main()
 
 	GameCycle();
 
-	wgetch(field_win);            // Wait for user input
 	endwin();                     // End curses mode
 	return 0;
 }
