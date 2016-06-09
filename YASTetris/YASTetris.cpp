@@ -7,6 +7,7 @@
 #define FIELD_Y 12
 #define FIELD_POS_X 12
 #define FIELD_POS_Y 10
+#define GROUP_THRESHOLD 4
 
 using namespace std::chrono;
 
@@ -15,10 +16,12 @@ enum Status { FALLEN, NOT_FALLEN };
 
 Cell game_field[FIELD_Y][FIELD_X];
 Status status_map[FIELD_Y][FIELD_X];
+int mark_map[FIELD_Y][FIELD_X];
 
 WINDOW *field_win;
 
 int act1_x, act1_y, act2_x, act2_y;
+
 bool isActive = false;
 bool isVertical = true;
 
@@ -88,6 +91,8 @@ void MoveCells()
 			}
 			if (!isActive)
 			{
+				status_map[act1_y][act1_x] = NOT_FALLEN;
+				status_map[act2_y][act2_x] = NOT_FALLEN;
 				status_map[act1_y + 1][act1_x] = FALLEN;
 				status_map[act2_y + 1][act2_x] = FALLEN;
 			}
@@ -99,11 +104,13 @@ void MoveCells()
 			if ((game_field[act1_y + 2][act1_x] != EMPTY) || ((act1_y + 1) == FIELD_Y - 1))
 			{
 				isActive = false;
+				status_map[act1_y][act1_x] = NOT_FALLEN;
 				status_map[act1_y + 1][act1_x] = FALLEN;
 			}
 			if ((game_field[act2_y + 2][act2_x] != EMPTY) || ((act2_y + 1) == FIELD_Y - 1))
 			{
 				isActive = false;
+				status_map[act2_y][act2_x] = NOT_FALLEN;
 				status_map[act2_y + 1][act2_x] = FALLEN;
 			}
 		}
@@ -120,16 +127,62 @@ void MoveCells()
 					game_field[j - 1][i] = EMPTY;
 					if ((status_map[j + 1][i] == FALLEN) || (j == (FIELD_Y - 1)))
 						status_map[j][i] = FALLEN;
+					status_map[j - 1][i] = NOT_FALLEN;
 				}
+}
+
+int CheckAdj(int j, int i, int group_num)
+{
+	int num_of_cells = 1;
+
+	if ((mark_map[j + 1][i] == 0) && (j != FIELD_Y))
+	{
+		num_of_cells += CheckAdj(j + 1, i, group_num);
+	}
+	if ((mark_map[j - 1][i] == 0) && (j != 0))
+	{
+		num_of_cells += CheckAdj(j - 1, i, group_num);
+	}
+	if ((mark_map[j][i + 1] == 0) && (i != FIELD_X))
+	{
+		num_of_cells += CheckAdj(j, i + 1, group_num);
+	}
+	if ((mark_map[j][i - 1] == 0) && (i != 0))
+	{
+		num_of_cells += CheckAdj(j, i - 1, group_num);
+	}
+	return num_of_cells;
 }
 
 void PopCells()
 {
-	int mark_map[FIELD_Y][FIELD_POS_X]
+	int group_num;
+	int num_of_cells;
 
 	if (!isActive)
 	{
+		group_num = 0;
+		for (int j = FIELD_Y; j > 0; --j)
+			for (int i = FIELD_X; i > 0; --i)
+				mark_map[j][i] = 0;
 
+		for (int j = FIELD_Y; j > 0; --j)
+			for (int i = FIELD_X; i > 0; --i)
+				if ((status_map[j][i] == FALLEN) && (mark_map[j][i] = 0))
+				{
+					group_num++;
+					num_of_cells = CheckAdj(j, i, group_num);
+
+					if (num_of_cells >= GROUP_THRESHOLD)
+						for (int j = FIELD_Y; j > 0; --j)
+							for (int i = FIELD_X; i > 0; --i)
+								if (mark_map[j][i] == group_num)
+								{
+									game_field[j][i] == EMPTY;
+									status_map[j][i] == NOT_FALLEN;
+									status_map[j - 1][i] == NOT_FALLEN;
+								}
+				}
 	}
 }
 
