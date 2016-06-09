@@ -172,19 +172,19 @@ int CheckAdj(int j, int i, int group_num)
 
 	mark_map[j][i] = group_num;
 
-	if ((game_field[j + 1][i] == game_field[j][i]) && (mark_map[j + 1][i] == 0) && (j != FIELD_Y))
+	if ((game_field[j + 1][i] == game_field[j][i]) && (mark_map[j + 1][i] == 0) && (status_map[j + 1][i] == STATIONARY) && (j != FIELD_Y))
 	{
 		num_of_cells += CheckAdj(j + 1, i, group_num);
 	}
-	if ((game_field[j - 1][i] == game_field[j][i]) && (mark_map[j - 1][i] == 0) && (j != 0))
+	if ((game_field[j - 1][i] == game_field[j][i]) && (mark_map[j - 1][i] == 0) && (status_map[j - 1][i] == STATIONARY) && (j != 0))
 	{
 		num_of_cells += CheckAdj(j - 1, i, group_num);
 	}
-	if ((game_field[j][i + 1] == game_field[j][i]) && (mark_map[j][i + 1] == 0) && (i != FIELD_X))
+	if ((game_field[j][i + 1] == game_field[j][i]) && (mark_map[j][i + 1] == 0) && (status_map[j][i + 1] == STATIONARY) && (i != FIELD_X))
 	{
 		num_of_cells += CheckAdj(j, i + 1, group_num);
 	}
-	if ((game_field[j][i - 1] == game_field[j][i]) && (mark_map[j][i - 1] == 0) && (i != 0))
+	if ((game_field[j][i - 1] == game_field[j][i]) && (mark_map[j][i - 1] == 0) && (status_map[j][i - 1] == STATIONARY) && (i != 0))
 	{
 		num_of_cells += CheckAdj(j, i - 1, group_num);
 	}
@@ -258,7 +258,7 @@ void Input()
 		}
 		break;
 	case KEY_RIGHT:
-		if ((act1_x < (FIELD_X - 1)) && (act2_x < (FIELD_X - 1)) && (status_map[act1_y][act1_x + 1] == EMPTY) && (status_map[act1_y][act1_x + 1] == EMPTY) && isActive)
+		if ((act1_x < (FIELD_X - 1)) && (act2_x < (FIELD_X - 1)) && (status_map[act1_y][act1_x + 1] == EMPTY) && (status_map[act2_y][act2_x + 1] == EMPTY) && isActive)
 		{
 			cell1 = game_field[act1_y][act1_x];
 			cell2 = game_field[act2_y][act2_x];
